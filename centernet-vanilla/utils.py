@@ -5,6 +5,7 @@ import torch
 import cv2
 from PIL import Image, ImageDraw
 import math
+from dataset import ctDataset
 
 def plot_heapmap(heatmap):
     ''' Plot the predicted heatmap
@@ -18,23 +19,29 @@ def plot_heapmap(heatmap):
     fig.tight_layout()
     plt.show()
 
-def generate_gt_data(index, wh_gt, reg_gt):
+def generate_gt_data(index):
     ''' Generate GT data as a detection result for testing
     '''
-    height_idx = int(index % 128)
-    width_idx = int(index / 128)
-    # print(height_idx, width_idx)
 
-    hm = torch.zeros((1, 1, 128, 128))
-    hm[0, 0, height_idx, width_idx] = 1
-
+    my_dataset = ctDataset()
+    gt_res = my_dataset.__getitem__(index)
     wh = torch.zeros((1, 2, 128, 128))
-    wh[0, 0, height_idx, width_idx] = wh_gt[0]
-    wh[0, 1, height_idx, width_idx] = wh_gt[1]
-
     reg = torch.zeros((1, 2, 128, 128))
-    reg[0, 0, height_idx, width_idx] = reg_gt[0]
-    reg[0, 1, height_idx, width_idx] = reg_gt[1]
+    hm = gt_res['hm'].reshape(1, 1, 128, 128)
+
+    for i in range(128):
+
+        if gt_res['reg_mask'][i] == 0:
+            continue
+        else:
+            ind = gt_res['ind'][i]
+            height_idx = int(ind // 128)
+            width_idx = int(ind % 128)
+            wh[0, 0, height_idx, width_idx] = gt_res['wh'][i, 0]
+            wh[0, 1, height_idx, width_idx] = gt_res['wh'][i, 1]
+
+            reg[0, 0, height_idx, width_idx] = gt_res['reg'][i, 0]
+            reg[0, 1, height_idx, width_idx] = gt_res['reg'][i, 1]
 
 
     return hm, wh, reg

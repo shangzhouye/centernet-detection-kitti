@@ -3,14 +3,15 @@ import torch
 import cv2
 import numpy as np
 from utils import *
+from dataset import ctDataset
 
 class Predictor:
     def __init__(self):
         # Todo: the mean and std need to be modified according to our dataset
-        self.mean_ = np.array([0.5194416012442385, 0.5378052387430711, 0.533462090585746], \
-                        dtype=np.float32).reshape(1, 1, 3)
-        self.std_  = np.array([0.3001546018824507, 0.28620901391179554, 0.3014112676161966], \
-                        dtype=np.float32).reshape(1, 1, 3)
+        # self.mean_ = np.array([0.5194416012442385, 0.5378052387430711, 0.533462090585746], \
+        #                 dtype=np.float32).reshape(1, 1, 3)
+        # self.std_  = np.array([0.3001546018824507, 0.28620901391179554, 0.3014112676161966], \
+        #                 dtype=np.float32).reshape(1, 1, 3)
         
         # input image size
         self.inp_width_  = 512
@@ -35,7 +36,7 @@ class Predictor:
         batch, cat, height, width = heat.size()
         topk_scores, topk_inds = torch.topk(heat.view(batch, cat, -1), K)
         topk_inds = topk_inds % (height * width)
-        topk_ys   = (topk_inds / width).int().float()
+        topk_ys   = (topk_inds // width).int().float()
         topk_xs   = (topk_inds % width).int().float() 
         topk_score, topk_ind = torch.topk(topk_scores.view(batch, -1), K)
         topk_inds = gather_feat(
@@ -65,7 +66,8 @@ class Predictor:
         plt.imshow(cv2.cvtColor(inp_image, cv2.COLOR_BGR2RGB))
         plt.show()
 
-        inp_image = ((inp_image / 255. - self.mean_) / self.std_).astype(np.float32)
+        # inp_image = ((inp_image / 255. - self.mean_) / self.std_).astype(np.float32)
+        inp_image = (inp_image / 255.).astype(np.float32)
 
         # from three to four dimension 
         # (h, w, 3) -> (3, h, w) -> (1，3，h，w)
@@ -104,7 +106,7 @@ class Predictor:
         reg = reg.view(batch, K, 2)
         xs = xs.view(batch, K, 1) + reg[:, :, 0:1]
         ys = ys.view(batch, K, 1) + reg[:, :, 1:2]
-    
+
         wh = transpose_and_gather_feat(wh, inds)
         wh = wh.view(batch, K, 2)
 
@@ -152,7 +154,7 @@ class Predictor:
             reg = output['reg']
 
             # Generate GT data for testing
-            hm, wh, reg = generate_gt_data(10320, [12.4259, 14.0292], [0.4542, 0.9862])
+            hm, wh, reg = generate_gt_data(1000)
 
             heads = [hm, wh, reg]
             # torch.cuda.synchronize()
@@ -168,7 +170,9 @@ if __name__ == '__main__':
     # model.cuda()
 
     # predict on a sample image
-    image = cv2.imread("sample_image.jpg")
+    my_dataset = ctDataset()
+    gt_res = my_dataset.__getitem__(1000)
+    image = gt_res['image']
 
     my_predictor = Predictor()
 
@@ -187,7 +191,7 @@ if __name__ == '__main__':
     threshold_mask = (dets_np[:, -1] > my_predictor.thresh_)
     dets_np = dets_np[threshold_mask, :]
 
-    print("Result size: ", dets_np.shape)
+    print("Result: ", dets_np)
 
     # need to convert from heatmap coordinate to image coordinate
 
