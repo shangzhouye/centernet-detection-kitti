@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from utils import *
 from dataset import ctDataset
+import os
 
 class Predictor:
     def __init__(self):
@@ -18,7 +19,7 @@ class Predictor:
         self.inp_height_ = 512
 
         # confidence threshold
-        self.thresh_ = 0.14
+        self.thresh_ = 0.3
 
     def nms(self, heat, kernel=3):
         ''' Non-maximal supression
@@ -97,9 +98,9 @@ class Predictor:
         heat, wh, reg = heads
 
         batch, cat, height, width = heat.size()
-        plot_heapmap(heat[0,0,:,:])
+        # plot_heapmap(heat[0,0,:,:])
         heat = self.nms(heat)
-        plot_heapmap(heat[0,0,:,:])
+        # plot_heapmap(heat[0,0,:,:])
 
         scores, inds, ys, xs = self.find_top_k(heat, K)
         reg = transpose_and_gather_feat(reg, inds)
@@ -154,24 +155,26 @@ class Predictor:
             reg = output['reg']
 
             # Generate GT data for testing
-            hm, wh, reg = generate_gt_data(1000)
+            # hm, wh, reg = generate_gt_data(400)
 
             heads = [hm, wh, reg]
-            # torch.cuda.synchronize()
+            torch.cuda.synchronize()
             dets = self.ctdet_decode(heads, 40) # K is the number of remaining instances
 
         return output, dets
 
 
 if __name__ == '__main__':
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0' 
     model = DlaNet(34)
-    # device = torch.device('cuda')
+    device = torch.device('cuda')
+    model.load_state_dict(torch.load('../best.pth'))
     model.eval()
-    # model.cuda()
+    model.cuda()
 
     # predict on a sample image
     my_dataset = ctDataset()
-    gt_res = my_dataset.__getitem__(1000)
+    gt_res = my_dataset.__getitem__(400)
     image = gt_res['image']
 
     my_predictor = Predictor()
@@ -180,6 +183,9 @@ if __name__ == '__main__':
 
     # preprocess the images
     images = my_predictor.pre_process(image)
+
+    images = images.to(device)
+
     # predict the output
     output, dets = my_predictor.process(images)
 
@@ -198,3 +204,4 @@ if __name__ == '__main__':
     result_image = my_predictor.draw_bbox(image, dets_np)
     plt.imshow(cv2.cvtColor(result_image, cv2.COLOR_BGR2RGB))
     plt.show()
+    cv2.imwrite("../sample_result.jpg", result_image) 

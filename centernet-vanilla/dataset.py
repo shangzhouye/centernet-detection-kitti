@@ -120,17 +120,25 @@ class ctDataset(data.Dataset):
 
     def __getitem__(self, index):
         image_path, label_path, cali_path = self.df_in_list_[index]
-        #get the image (375, 1242, 3)
+        # get the image (375, 1242, 3)
         img = cv2.imread(image_path) 
         default_resolution = [375, 1242]
-        #get the labels
+
+        # height, width = img.shape[0], img.shape[1]  
+        # print("Before pre-reshape: ", height, width)
+
+        # reshape image to default size (some samples have slightly different size)
+        img = cv2.resize(img,(default_resolution[1], default_resolution[0]))
+
+        # get the labels
         with open(label_path) as f:
             content = f.readlines()
         content = [x.split() for x in content]
         # print(content)
 
-        #transform to 512 * 512
+        # transform to 512 * 512
         height, width = img.shape[0], img.shape[1]  
+        # print("After pre-reshape: ", height, width)
         input_h, input_w = 512, 512 
         inp = cv2.resize(img,(input_w, input_h))
         scale_h, scale_w = input_h/height, input_w/width
@@ -138,7 +146,6 @@ class ctDataset(data.Dataset):
 
         
         inp = (inp.astype(np.float32) / 255.)  
-
         inp = inp.transpose(2, 0, 1) 
 
         
@@ -175,12 +182,12 @@ class ctDataset(data.Dataset):
                     count = count + 1
 
         res = {'image': img, \
-                'input': torch.from_numpy(inp), \
-                'hm': torch.from_numpy(hm), \
-                'reg_mask': torch.from_numpy(reg_mask), \
-                'ind': torch.from_numpy(ind), \
-                'wh': torch.from_numpy(wh), \
-                'reg':torch.from_numpy(reg)}
+                'input': inp, \
+                'hm': hm, \
+                'reg_mask': reg_mask, \
+                'ind': ind, \
+                'wh': wh, \
+                'reg':reg}
 
         return res
 

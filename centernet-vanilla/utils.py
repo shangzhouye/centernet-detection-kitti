@@ -25,6 +25,8 @@ def generate_gt_data(index):
 
     my_dataset = ctDataset()
     gt_res = my_dataset.__getitem__(index)
+    for key in gt_res:
+        gt_res[key]  = torch.from_numpy(gt_res[key])
     wh = torch.zeros((1, 2, 128, 128))
     reg = torch.zeros((1, 2, 128, 128))
     hm = gt_res['hm'].reshape(1, 1, 128, 128)

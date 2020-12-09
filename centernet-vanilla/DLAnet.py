@@ -1,4 +1,4 @@
-''' Source: https://github.com/ZeroE04/R-CenterNet/
+''' Adapted from https://github.com/ZeroE04/R-CenterNet/
 '''
 
 from __future__ import absolute_import
@@ -544,12 +544,6 @@ class Creat_DlaNet(nn.Module):
         channels = self.base.channels
         scales = [2 ** i for i in range(len(channels[self.first_level:]))]
         self.dla_up = DLAUp(channels[self.first_level:], scales=scales)
-        '''
-        self.fc = nn.Sequential(
-            nn.Conv2d(channels[self.first_level], classes, kernel_size=1,
-                      stride=1, padding=0, bias=True)
-        )
-        '''
 
         for head in self.heads:
             classes = self.heads[head]
@@ -575,29 +569,6 @@ class Creat_DlaNet(nn.Module):
                     fill_fc_weights(fc)
             self.__setattr__(head, fc)
 
-        '''
-        up_factor = 2 ** self.first_level
-        if up_factor > 1:
-            up = nn.ConvTranspose2d(classes, classes, up_factor * 2,
-                                    stride=up_factor, padding=up_factor // 2,
-                                    output_padding=0, groups=classes,
-                                    bias=False)
-            fill_up_weights(up)
-            up.weight.requires_grad = False
-        else:
-            up = Identity()
-        self.up = up
-        self.softmax = nn.LogSoftmax(dim=1)
-        
-        for m in self.fc.modules():
-            if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
-            elif isinstance(m, BatchNorm):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
-        '''
-
     def forward(self, x):
         x = self.base(x)
         x = self.dla_up(x[self.first_level:])
@@ -605,46 +576,14 @@ class Creat_DlaNet(nn.Module):
         # y = self.softmax(self.up(x))
         
         ret = {}
-        res = [] # 为了画图
+        res = [] 
         for head in self.heads:
             ret[head] = self.__getattr__(head)(x)
-            res.append(self.__getattr__(head)(x)) #为了画图，不画图就返回ret
+            res.append(self.__getattr__(head)(x))
         return res if self.plot else ret
-        
-    
-    
-    
-    
-    
-
-    '''
-    def optim_parameters(self, memo=None):
-        for param in self.base.parameters():
-            yield param
-        for param in self.dla_up.parameters():
-            yield param
-        for param in self.fc.parameters():
-            yield param
-    '''
-'''
-def dla34up(classes, pretrained_base=None, **kwargs):
-    model = DLASeg('dla34', classes, pretrained_base=pretrained_base, **kwargs)
-    return model
-def dla60up(classes, pretrained_base=None, **kwargs):
-    model = DLASeg('dla60', classes, pretrained_base=pretrained_base, **kwargs)
-    return model
-def dla102up(classes, pretrained_base=None, **kwargs):
-    model = DLASeg('dla102', classes,
-                   pretrained_base=pretrained_base, **kwargs)
-    return model
-def dla169up(classes, pretrained_base=None, **kwargs):
-    model = DLASeg('dla169', classes,
-                   pretrained_base=pretrained_base, **kwargs)
-    return model
-'''
 
 
-def DlaNet(num_layers=34, heads = {'hm': 1, 'wh': 2, 'ang':1, 'reg': 2}, head_conv=256, plot=False):
+def DlaNet(num_layers=34, heads = {'hm': 1, 'wh': 2, 'reg': 2}, head_conv=256, plot=False):
     model = Creat_DlaNet('dla{}'.format(num_layers), heads,
                  pretrained=True,
                  down_ratio=4,
