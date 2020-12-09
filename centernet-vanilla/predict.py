@@ -20,7 +20,7 @@ class Predictor:
         self.inp_height_ = 512
 
         # confidence threshold
-        self.thresh_ = 0.0
+        self.thresh_ = 0.3
 
         self.use_gpu_ = use_gpu
 
@@ -171,7 +171,20 @@ class Predictor:
             dets = self.ctdet_decode(heads, 40) # K is the number of remaining instances
 
         return output, dets
+    
+    def input2image(detection):
+        ''' Transform the detections results from input coordinate (512*512) to original image coordinate
 
+            x is in width direction, y is height
+        '''
+        default_resolution = [375, 1242]
+        det_original = np.copy(detection)
+        det_original[0, :] = det_original[0, :] / self.inp_width_ * default_resolution[1]
+        det_original[2, :] = det_original[2, :] / self.inp_width_ * default_resolution[1]
+        det_original[1, :] = det_original[1, :] / self.inp_width_ * default_resolution[0]
+        det_original[3, :] = det_original[3, :] / self.inp_width_ * default_resolution[0]
+
+        return det_original
 
 if __name__ == '__main__':
 
@@ -232,3 +245,15 @@ if __name__ == '__main__':
         plt.imshow(cv2.cvtColor(result_image, cv2.COLOR_BGR2RGB))
         plt.show()
         # cv2.imwrite("../sample_result.jpg", result_image) 
+
+
+        # write results to list of txt files
+        dets_original = my_predictor.input2image(dets_np)
+        original_image = sample['image'][0].numpy()
+        for i in range(dets_original.shape[0]):
+            cv2.rectangle(original_image, \
+                        (dets_original[i,0],dets_original[i,1]), \
+                        (dets_original[i,2],dets_original[i,3]), \
+                        (0,255,0), 1)
+        plt.imshow(cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB))
+        plt.show()
