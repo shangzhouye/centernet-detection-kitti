@@ -6,6 +6,7 @@ from loss import CtdetLoss
 from torch.utils.data import DataLoader
 from dataset import ctDataset
 from DLAnet import DlaNet
+import torch.nn as nn
 
 def main():
 
@@ -16,16 +17,16 @@ def main():
 
     if (use_gpu):
         # os.environ["CUDA_VISIBLE_DEVICES"] = '0' 
+        # model = nn.DataParallel(model)
+        # print('Using ', torch.cuda.device_count(), "CUDAs")
         print('cuda', torch.cuda.current_device(), torch.cuda.device_count())
-
-    loss_weight = {'hm_weight':1, 'wh_weight':0.1, 'reg_weight':0.1}
-    criterion = CtdetLoss(loss_weight)
-
-    if use_gpu:
         device = torch.device("cuda")
         model.cuda()
     else:
         device = torch.device("cpu")
+
+    loss_weight = {'hm_weight':1, 'wh_weight':0.1, 'reg_weight':0.1}
+    criterion = CtdetLoss(loss_weight)
     
     model.train()
 

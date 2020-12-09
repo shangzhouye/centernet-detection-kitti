@@ -181,16 +181,17 @@ if __name__ == '__main__':
 
     if (use_gpu):
         # os.environ["CUDA_VISIBLE_DEVICES"] = '0' 
+        # model = nn.DataParallel(model)
+        # print('Using ', torch.cuda.device_count(), "CUDAs")
+        print('cuda', torch.cuda.current_device(), torch.cuda.device_count())
         device = torch.device('cuda')
         model.load_state_dict(torch.load('../best.pth'))
+        model.cuda()
     else:
         device = torch.device('cpu')
         model.load_state_dict(torch.load('../best.pth', map_location=torch.device('cpu')))
 
     model.eval()
-
-    if (use_gpu):
-        model.cuda()
 
     # predict on a sample image
     my_dataset = ctDataset()
