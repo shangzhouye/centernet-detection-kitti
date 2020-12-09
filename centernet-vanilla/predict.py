@@ -7,7 +7,7 @@ from dataset import ctDataset
 import os
 
 class Predictor:
-    def __init__(self):
+    def __init__(self, use_gpu):
         # Todo: the mean and std need to be modified according to our dataset
         # self.mean_ = np.array([0.5194416012442385, 0.5378052387430711, 0.533462090585746], \
         #                 dtype=np.float32).reshape(1, 1, 3)
@@ -20,6 +20,8 @@ class Predictor:
 
         # confidence threshold
         self.thresh_ = 0.3
+
+        self.use_gpu_ = use_gpu
 
     def nms(self, heat, kernel=3):
         ''' Non-maximal supression
@@ -98,9 +100,14 @@ class Predictor:
         heat, wh, reg = heads
 
         batch, cat, height, width = heat.size()
-        # plot_heapmap(heat[0,0,:,:])
+
+        if (not self.use_gpu_):
+            plot_heapmap(heat[0,0,:,:])
+
         heat = self.nms(heat)
-        # plot_heapmap(heat[0,0,:,:])
+
+        if (not self.use_gpu_):
+            plot_heapmap(heat[0,0,:,:])
 
         scores, inds, ys, xs = self.find_top_k(heat, K)
         reg = transpose_and_gather_feat(reg, inds)
@@ -158,26 +165,39 @@ class Predictor:
             # hm, wh, reg = generate_gt_data(400)
 
             heads = [hm, wh, reg]
-            torch.cuda.synchronize()
+            if (self.use_gpu_):
+                torch.cuda.synchronize()
             dets = self.ctdet_decode(heads, 40) # K is the number of remaining instances
 
         return output, dets
 
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0' 
+
+    use_gpu = torch.cuda.is_available()
+    print("Use CUDA? ", use_gpu)
+
     model = DlaNet(34)
-    device = torch.device('cuda')
-    model.load_state_dict(torch.load('../best.pth'))
+
+    if (use_gpu):
+        # os.environ["CUDA_VISIBLE_DEVICES"] = '0' 
+        device = torch.device('cuda')
+        model.load_state_dict(torch.load('../best.pth'))
+    else:
+        device = torch.device('cpu')
+        model.load_state_dict(torch.load('../best.pth', map_location=torch.device('cpu')))
+
     model.eval()
-    model.cuda()
+
+    if (use_gpu):
+        model.cuda()
 
     # predict on a sample image
     my_dataset = ctDataset()
     gt_res = my_dataset.__getitem__(400)
     image = gt_res['image']
 
-    my_predictor = Predictor()
+    my_predictor = Predictor(use_gpu)
 
     # Todo: wrap into a pipeline function
 

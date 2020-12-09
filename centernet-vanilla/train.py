@@ -9,18 +9,23 @@ from DLAnet import DlaNet
 
 def main():
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0' 
     use_gpu = torch.cuda.is_available()
     print("Use CUDA? ", use_gpu)
+
     model = DlaNet(34)
-    print('cuda', torch.cuda.current_device(), torch.cuda.device_count())
+
+    if (use_gpu):
+        # os.environ["CUDA_VISIBLE_DEVICES"] = '0' 
+        print('cuda', torch.cuda.current_device(), torch.cuda.device_count())
 
     loss_weight = {'hm_weight':1, 'wh_weight':0.1, 'reg_weight':0.1}
     criterion = CtdetLoss(loss_weight)
 
-    device = torch.device("cuda")
     if use_gpu:
+        device = torch.device("cuda")
         model.cuda()
+    else:
+        device = torch.device("cpu")
     
     model.train()
 
