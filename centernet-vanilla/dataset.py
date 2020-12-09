@@ -187,7 +187,8 @@ class ctDataset(data.Dataset):
                 'reg_mask': reg_mask, \
                 'ind': ind, \
                 'wh': wh, \
-                'reg':reg}
+                'reg':reg, \
+                'index': index}
 
         return res
 

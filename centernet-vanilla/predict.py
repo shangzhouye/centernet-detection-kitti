@@ -20,7 +20,7 @@ class Predictor:
         self.inp_height_ = 512
 
         # confidence threshold
-        self.thresh_ = 0.3
+        self.thresh_ = 0.1
 
         self.use_gpu_ = use_gpu
 
@@ -172,17 +172,17 @@ class Predictor:
 
         return output, dets
     
-    def input2image(detection):
+    def input2image(self, detection):
         ''' Transform the detections results from input coordinate (512*512) to original image coordinate
 
             x is in width direction, y is height
         '''
         default_resolution = [375, 1242]
         det_original = np.copy(detection)
-        det_original[0, :] = det_original[0, :] / self.inp_width_ * default_resolution[1]
-        det_original[2, :] = det_original[2, :] / self.inp_width_ * default_resolution[1]
-        det_original[1, :] = det_original[1, :] / self.inp_width_ * default_resolution[0]
-        det_original[3, :] = det_original[3, :] / self.inp_width_ * default_resolution[0]
+        det_original[:, 0] = det_original[:, 0] / self.inp_width_ * default_resolution[1]
+        det_original[:, 2] = det_original[:, 2] / self.inp_width_ * default_resolution[1]
+        det_original[:, 1] = det_original[:, 1] / self.inp_width_ * default_resolution[0]
+        det_original[:, 3] = det_original[:, 3] / self.inp_width_ * default_resolution[0]
 
         return det_original
 
@@ -237,23 +237,36 @@ if __name__ == '__main__':
         threshold_mask = (dets_np[:, -1] > my_predictor.thresh_)
         dets_np = dets_np[threshold_mask, :]
 
-        print("Result: ", dets_np)
-
         # need to convert from heatmap coordinate to image coordinate
-
-        result_image = my_predictor.draw_bbox(sample['image'][0].numpy(), dets_np)
-        plt.imshow(cv2.cvtColor(result_image, cv2.COLOR_BGR2RGB))
-        plt.show()
-        # cv2.imwrite("../sample_result.jpg", result_image) 
-
 
         # write results to list of txt files
         dets_original = my_predictor.input2image(dets_np)
+        # print("Result: ", dets_original)
+
+        # draw the result
         original_image = sample['image'][0].numpy()
         for i in range(dets_original.shape[0]):
             cv2.rectangle(original_image, \
                         (dets_original[i,0],dets_original[i,1]), \
                         (dets_original[i,2],dets_original[i,3]), \
                         (0,255,0), 1)
-        plt.imshow(cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB))
-        plt.show()
+        # plt.imshow(cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB))
+        # plt.show()
+        # cv2.imwrite("../sample_result.jpg", original_image) 
+
+        # write the result
+        file_path = '../results/'
+        index_str = str(sample['index'].numpy()[0])
+        index_str = '0' * (6 - len(index_str)) + index_str
+
+        f = open(file_path + index_str + '.txt', "x")
+        f.close()
+        for line in range(dets_original.shape[0]):
+            f = open(file_path + index_str + '.txt', "a")
+            f.write("Car -1 -1 -10 " + str(dets_original[line,0]) + " " +\
+                                        str(dets_original[line,1]) + " " +\
+                                        str(dets_original[line,2]) + " " +\
+                                        str(dets_original[line,3]) + " " +\
+                                        "-1 -1 -1 -1000 -1000 -1000 -10 " + str(dets_original[line,4]) + '\n')
+            f.close()
+
