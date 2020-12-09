@@ -46,10 +46,12 @@ def main():
     print("Training set and testing set has: ", train_dataset.__len__(), \
             " and ", test_dataset.__len__(), " images respectively.")
 
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=False, num_workers=0)
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=0)
+    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=False, num_workers=0)
+    test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False, num_workers=0)
 
     best_test_loss = np.inf 
+
+    loss_log = np.empty((0, 3))
 
     for epoch in range(num_epochs):
         model.train()
@@ -92,13 +94,17 @@ def main():
             validation_loss += loss.item()
         validation_loss /= len(test_loader)
         
-        
+        print('Epoch [%d/%d] Validation loss %.5f' % (epoch+1, num_epochs, validation_loss))
+
+        loss_log = np.append(loss_log, [[epoch+1, total_loss / len(train_loader), validation_loss]], axis=0)
+        np.savetxt('../loss_log.csv', loss_log, delimiter=',')
+
         if best_test_loss > validation_loss:
             best_test_loss = validation_loss
-            print('Get best test loss %.5f' % best_test_loss)
+            print('Get best test loss.')
             torch.save(model.state_dict(),'../best.pth')
         
-        torch.save(model.state_dict(),'../last.pth')
+        torch.save(model.state_dict(),'../' + str(epoch+1) + '_epoch.pth')
             
 
 if __name__ == "__main__":
