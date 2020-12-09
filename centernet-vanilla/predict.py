@@ -5,6 +5,7 @@ import numpy as np
 from utils import *
 from dataset import ctDataset
 import os
+from torch.utils.data import DataLoader
 
 class Predictor:
     def __init__(self, use_gpu):
@@ -19,7 +20,7 @@ class Predictor:
         self.inp_height_ = 512
 
         # confidence threshold
-        self.thresh_ = 0.3
+        self.thresh_ = 0.0
 
         self.use_gpu_ = use_gpu
 
@@ -193,36 +194,41 @@ if __name__ == '__main__':
 
     model.eval()
 
-    # predict on a sample image
-    my_dataset = ctDataset()
-    gt_res = my_dataset.__getitem__(400)
-    image = gt_res['image']
+    # get the input from the same data loader
+    full_dataset = ctDataset()
+    full_dataset_len = full_dataset.__len__()
+    train_size = int(0.8 * full_dataset_len)
+    test_size = full_dataset_len - train_size
+    train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size], \
+                                                                generator=torch.Generator().manual_seed(42))
+    # batch size is one
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=0)
 
     my_predictor = Predictor(use_gpu)
 
-    # Todo: wrap into a pipeline function
+    for i, sample in enumerate(test_loader):
 
-    # preprocess the images
-    images = my_predictor.pre_process(image)
+        if use_gpu:
+            for k in sample:
+                sample[k] = sample[k].to(device=device, non_blocking=True)
+        
+        # predict the output
+        # use the dataloader result instead of do the preprocess again
+        output, dets = my_predictor.process(sample['input'])
 
-    images = images.to(device)
+        # transfer to numpy, and reshape [batch_size, K, 5] -> [K, 5]
+        # only considered batch size 1 here
+        dets_np = dets.detach().cpu().numpy()[0]
 
-    # predict the output
-    output, dets = my_predictor.process(images)
+        # select detections above threshold
+        threshold_mask = (dets_np[:, -1] > my_predictor.thresh_)
+        dets_np = dets_np[threshold_mask, :]
 
-    # transfer to numpy, and reshape [batch_size, K, 5] -> [K, 5]
-    # only considered batch size 1 here
-    dets_np = dets.detach().cpu().numpy()[0]
+        print("Result: ", dets_np)
 
-    # select detections above threshold
-    threshold_mask = (dets_np[:, -1] > my_predictor.thresh_)
-    dets_np = dets_np[threshold_mask, :]
+        # need to convert from heatmap coordinate to image coordinate
 
-    print("Result: ", dets_np)
-
-    # need to convert from heatmap coordinate to image coordinate
-
-    result_image = my_predictor.draw_bbox(image, dets_np)
-    plt.imshow(cv2.cvtColor(result_image, cv2.COLOR_BGR2RGB))
-    plt.show()
-    cv2.imwrite("../sample_result.jpg", result_image) 
+        result_image = my_predictor.draw_bbox(sample['image'][0].numpy(), dets_np)
+        plt.imshow(cv2.cvtColor(result_image, cv2.COLOR_BGR2RGB))
+        plt.show()
+        # cv2.imwrite("../sample_result.jpg", result_image) 
