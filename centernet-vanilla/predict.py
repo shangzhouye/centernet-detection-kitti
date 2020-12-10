@@ -20,7 +20,7 @@ class Predictor:
         self.inp_height_ = 512
 
         # confidence threshold
-        self.thresh_ = 0.1
+        self.thresh_ = 0.35
 
         self.use_gpu_ = use_gpu
 
