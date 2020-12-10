@@ -192,15 +192,15 @@ if __name__ == '__main__':
     print("Use CUDA? ", use_gpu)
 
     model = DlaNet(34)
-
+    device = None
     if (use_gpu):
         # os.environ["CUDA_VISIBLE_DEVICES"] = '0' 
         # model = nn.DataParallel(model)
         # print('Using ', torch.cuda.device_count(), "CUDAs")
         print('cuda', torch.cuda.current_device(), torch.cuda.device_count())
-        device = torch.device('cuda')
+        device = torch.device('cuda:1')
         model.load_state_dict(torch.load('../best.pth'))
-        model.cuda()
+        model.to(device)
     else:
         device = torch.device('cpu')
         model.load_state_dict(torch.load('../best.pth', map_location=torch.device('cpu')))
@@ -214,7 +214,7 @@ if __name__ == '__main__':
     test_size = full_dataset_len - train_size
     train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size], \
                                                                 generator=torch.Generator().manual_seed(42))
-    # batch size is one
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False, num_workers=0)
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=0)
 
     my_predictor = Predictor(use_gpu)
@@ -244,7 +244,7 @@ if __name__ == '__main__':
         # print("Result: ", dets_original)
 
         # draw the result
-        original_image = sample['image'][0].numpy()
+        original_image = sample['image'][0].cpu().numpy()
         for i in range(dets_original.shape[0]):
             cv2.rectangle(original_image, \
                         (dets_original[i,0],dets_original[i,1]), \
@@ -252,14 +252,15 @@ if __name__ == '__main__':
                         (0,255,0), 1)
         # plt.imshow(cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB))
         # plt.show()
-        # cv2.imwrite("../sample_result.jpg", original_image) 
 
         # write the result
         file_path = '../results/'
-        index_str = str(sample['index'].numpy()[0])
+        index_str = str(sample['index'].cpu().numpy()[0])
         index_str = '0' * (6 - len(index_str)) + index_str
 
-        f = open(file_path + index_str + '.txt', "x")
+        # cv2.imwrite("../predicts_valid/" + index_str + ".jpg", original_image) 
+
+        f = open(file_path + index_str + '.txt', "w")
         f.close()
         for line in range(dets_original.shape[0]):
             f = open(file_path + index_str + '.txt', "a")
